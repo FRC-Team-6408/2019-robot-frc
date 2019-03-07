@@ -3,91 +3,100 @@ package frc.robot;
 import edu.wpi.cscore.UsbCamera;
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.wpilibj.Joystick;
-import edu.wpi.first.wpilibj.Servo;
-//import edu.wpi.first.wpilibj.PWMVictorSPX;
 import edu.wpi.first.wpilibj.Spark;
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
 import edu.wpi.first.wpilibj.TimedRobot;
-import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.BuiltInAccelerometer;
 
+import edu.wpi.first.wpilibj.Timer;
+
 public class Robot extends TimedRobot {
     private SpeedControllerGroup left = new SpeedControllerGroup(new Spark(0), new Spark(1));
     private SpeedControllerGroup right = new SpeedControllerGroup(new Spark(2), new Spark(3));
     private final DifferentialDrive m_robotDrive = new DifferentialDrive(left, right);
-    private final Joystick m_stick = new Joystick(0);  // Make sure controller is number 0;
-    private final Timer m_timer = new Timer();
+
+    private final Joystick m_stick = new Joystick(0);  // Make sure controller is number 0.
 
     public BuiltInAccelerometer bia = new BuiltInAccelerometer();
+
+    public UsbCamera usbCam1;
+    public UsbCamera usbCam2;
 
     private Spark plugMotor = new Spark(4);
     private Spark clawL = new Spark(5);
     private Spark clawR = new Spark(6);
 
-    private boolean x_toggle = false;
-    private double speedMod = 0.9; 
-
-    //public Servo actuator = new Servo(7); 
-
-    public UsbCamera usbCam1;
-    public UsbCamera usbCam2;
-
     public int g_ticksElapsed = 0;
 
+    // Component Speeds // 
+    
     public double rampSpeed = 0.25;
+    public double idlePressure = 0.08;
+
+    public boolean clawClosed = true;
+    public boolean clawButtonToggle = true;
     public double clawSpeed = 0.5;
+
+    private boolean speedToggle = false;
+    private double speedMod = 0.6; 
+
+    // Main Functions // 
 
     @Override
     public void robotInit() {
-        //Set up the two cameras.
+        // Setup the two cameras.
     	usbCam1 = CameraServer.getInstance().startAutomaticCapture("front-cam", 0);
         usbCam2 = CameraServer.getInstance().startAutomaticCapture("back-cam", 1);
-
-        SmartDashboard.putNumber("Random Number", 123);
-        SmartDashboard.putString("SayHello", "Hello");
     }
     
     @Override
-    public void autonomousInit() {
-        //m_timer.reset();
-        //m_timer.start();
-    }
+    public void autonomousInit() { }
 
     @Override
     public void autonomousPeriodic() {
-        teleopPeriodic();  // This means no auto.
+        teleopPeriodic();  // We are using driver, camera controls for sandstorm.
     }
 
     @Override
-    public void teleopInit() {
-    }
+    public void teleopInit() { }
 
     @Override
     public void teleopPeriodic() {
         m_robotDrive.tankDrive(-m_stick.getY() * speedMod, -m_stick.getRawAxis(5) * speedMod);
         
-        // Claw.
-        if (m_stick.getRawButton(2)) {
-            System.out.println("CLOSE - CLAW");
-            clawL.setSpeed(-clawSpeed);
-            clawR.setSpeed(clawSpeed);
+        // Claw Control --> toggle
+        if (m_stick.getRawButton(2)==true && clawButtonToggle==true) {  // Case: Switch the motor direction. (in / out)
+            clawClosed = !clawClosed;
+            clawButtonToggle = false;
 
-        } else if (m_stick.getRawButton(1)) {
-            System.out.println("OPEN - CLAW");
-            clawL.setSpeed(clawSpeed);
-            clawR.setSpeed(-clawSpeed);
-
-        } else {
-            clawL.setSpeed(0);
-            clawR.setSpeed(0);
+        } else if(m_stick.getRawButton(2)==false) {  // Case: keep pressure on the claw. 
+            clawButtonToggle = true;
+            if (clawClosed == true) {
+                clawL.setSpeed(-idlePressure);
+                clawR.setSpeed(idlePressure);
+            } else {
+                clawL.setSpeed(idlePressure);
+                clawR.setSpeed(-idlePressure);
+            }
+        } 
+        
+        // Case: do movement of claw.
+        if (m_stick.getRawButton(2)==true && clawButtonToggle==false) { 
+            if (clawClosed == true) {
+                clawL.setSpeed(-clawSpeed);
+                clawR.setSpeed(clawSpeed);
+            } else {
+                clawL.setSpeed(clawSpeed);
+                clawR.setSpeed(-clawSpeed);
+            }
         }
 
-        // Let ramp go down.
+        // Pull the plug and drop the ramp.
         if (m_stick.getRawButton(5) && m_stick.getRawButton(6)) {
-            System.out.println("Dropping Ramp");
+            System.out.println("!!DROPPING RAMP!!");
             plugMotor.setSpeed(-rampSpeed);
 
             m_stick.setRumble(RumbleType.kLeftRumble, 1.0);
@@ -100,18 +109,18 @@ public class Robot extends TimedRobot {
             m_stick.setRumble(RumbleType.kRightRumble, 0);
         }
         
-        // Toggles the speed.
-        if ((m_stick.getRawButton(3)==true) && (x_toggle==true)) {
-            if(x_toggle) {
-                if (speedMod == 0.5){
+        // Toggle for speed.
+        if (m_stick.getRawButton(4)==true && speedToggle==true) {
+            if(speedToggle) {
+                if (speedMod == 0.6) {
                     speedMod = 0.9;
                 } else {
-                    speedMod = 0.5;
+                    speedMod = 0.6;
                 }
             }
-            x_toggle = false;
-        } else if ((m_stick.getRawButton(3)==false) && (x_toggle==false)) {
-            x_toggle = true;
+            speedToggle=false;
+        } else if (m_stick.getRawButton(4)==false && speedToggle==false) {
+            speedToggle=true;
         }
         
     }
@@ -120,9 +129,5 @@ public class Robot extends TimedRobot {
     public void testPeriodic() { 
         g_ticksElapsed++;
         SmartDashboard.putNumber("Ticks Elapsed--Test", g_ticksElapsed);
-
-        SmartDashboard.putNumber("Accel : X", bia.getX());
-        SmartDashboard.putNumber("Accel : Y", bia.getY());
-        SmartDashboard.putNumber("Accel : Z", bia.getZ());
     }
 }
