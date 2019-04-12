@@ -6,9 +6,9 @@ import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.Spark;
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
 import edu.wpi.first.wpilibj.TimedRobot;
-//import edu.wpi.first.wpilibj.GenericHID.RumbleType;
+import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
-//import edu.wpi.first.wpilibj.BuiltInAccelerometer;
+import edu.wpi.first.wpilibj.BuiltInAccelerometer;
 
 //import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 //import edu.wpi.first.wpilibj.Timer;
@@ -33,7 +33,7 @@ public class Robot extends TimedRobot {
 
     // Component Speeds // 
     
-    public double rampSpeed = 0.40;
+    public double rampSpeed = 0.4;
 
     public double idlePressure = 0.24;
     public boolean clawClosed = true;
@@ -48,7 +48,6 @@ public class Robot extends TimedRobot {
     @Override
     public void robotInit() {
         CameraServer.getInstance().startAutomaticCapture();
-        backpressure = true;
         // Setup the two cameras.
     	//usbCam1 = CameraServer.getInstance().startAutomaticCapture("front-cam", 0);
         //usbCam2 = CameraServer.getInstance().startAutomaticCapture("back-cam", 1);
@@ -65,8 +64,6 @@ public class Robot extends TimedRobot {
     @Override
     public void teleopInit() { }
 
-    public boolean backpressure = true;
-
     @Override
     public void teleopPeriodic() {
         m_robotDrive.arcadeDrive(-m_stick.getY() * speedMod, m_stick.getX() * speedMod);  // Arcade drive is negitave tank drive.
@@ -80,40 +77,40 @@ public class Robot extends TimedRobot {
             clawButtonToggle = true;
             if (clawClosed == true) {
                 clawL.setSpeed(-idlePressure);
-                clawR.setSpeed(idlePressure);
+                clawR.setSpeed(idlePressure*0.98);
             } else {
                 clawL.setSpeed(idlePressure);
-                clawR.setSpeed(-idlePressure);
+                clawR.setSpeed(-idlePressure*0.98);
             }
         } 
         
         // Case: do movement of claw.  
         if (m_stick.getRawButton(2)==true && clawButtonToggle==false) { 
-            if (clawClosed == true) {      
+            if (clawClosed == true) {
                 clawL.setSpeed(-clawSpeed);
-                clawR.setSpeed(clawSpeed);
-            } else {    
+                clawR.setSpeed(clawSpeed*0.98);
+            } else {
                 clawL.setSpeed(clawSpeed);
-                clawR.setSpeed(-clawSpeed);
+                clawR.setSpeed(-clawSpeed*0.98);
             }
         }
 
         // Pull the plug and drop the ramp.  L&R bumpers for dropping ramp.
-        if (m_stick.getRawButton(5)) {  //up
-            plugMotor.setSpeed(-0.5);
-            backpressure = false;
-        } else if(m_stick.getRawButton(6)) {  //down
-            plugMotor.setSpeed(0.4);
-            backpressure = false;
-        } else {
-            if (backpressure == true) {
-                plugMotor.setSpeed(-0.20);
-            } else {
-                plugMotor.setSpeed(0);
-            }
-        }
+        if (m_stick.getRawButton(5)) {
+            //System.out.println("!!DROPPING RAMP!!");
+            plugMotor.setSpeed(-rampSpeed);
 
-        
+            //m_stick.setRumble(RumbleType.kLeftRumble, 1.0);
+            //m_stick.setRumble(RumbleType.kRightRumble, 1.0);
+        } else if(m_stick.getRawButton(6)) {
+            //System.out.println("!!DROPPING RAMP!!");
+            plugMotor.setSpeed(rampSpeed);
+        } else {
+            plugMotor.setSpeed(0);
+
+            //m_stick.setRumble(RumbleType.kLeftRumble, 0);
+            //m_stick.setRumble(RumbleType.kRightRumble, 0);
+        }
         
         // Toggle for speed.  Triangle toggles speed.
         if (m_stick.getRawButton(4)==true && speedToggle==true) {
@@ -121,7 +118,7 @@ public class Robot extends TimedRobot {
                 if (speedMod == 0.65) {
                     speedMod = 0.9;
                 } else {
-                    speedMod = 0.65;            
+                    speedMod = 0.65;
                 }
             }
             speedToggle=false;
